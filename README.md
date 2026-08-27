@@ -13,6 +13,29 @@ same k3s cluster on the Raspberry Pi.
 - **Postgres** — reuses reptrack's Postgres instance
   (`postgres.practify.svc.cluster.local:5432`), separate `notif_staging` database.
 
+### How the Redis queue works
+
+The queue is hand-rolled on a single Redis **list** at key `notif:queue` (defined in
+`app/queue.py`). There is no queue library — just two Redis list commands:
+
+- **Producer** (`app/main.py`) — on `POST /notifications`, serializes the payload to
+  JSON and `RPUSH`es it onto the right end of the list. The HTTP request returns `202`
+  immediately; delivery happens later, out of band.
+- **Consumer** (`app/worker.py`) — loops on `BLPOP notif:queue`, which pops from the
+  left end (FIFO). `BLPOP` *blocks* until a job is available instead of busy-polling,
+  so an idle worker uses no CPU. We pass a 5s timeout so the loop wakes periodically to
+  check for shutdown; on timeout `BLPOP` returns `None` and we just loop again.
+
+Both sides connect via `get_redis()`, which reads the `REDIS_URL` env var (set in the
+k8s deployments; falls back to `redis://localhost:6379/2` for local dev) — there is no
+shared state beyond the Redis list itself, so
+the API and worker are fully decoupled and each can be scaled or restarted independently.
+
+Caveats of this simple design: `BLPOP` removes the job *before* it's processed, so a
+worker crash mid-delivery loses that job (no retry/ack). The worker reconnects on
+Redis errors and shuts down gracefully on `SIGTERM`, but at-least-once delivery would
+need a reliable-queue pattern (e.g. `BLMOVE` into a processing list, or a library like RQ).
+
 ## Local development
 
 ```bash
