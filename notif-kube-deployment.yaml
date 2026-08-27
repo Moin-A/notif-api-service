@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: notif
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notif-api
+  namespace: notif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notif-api
+  template:
+    metadata:
+      labels:
+        app: notif-api
+    spec:
+      containers:
+        - name: notif-api
+          image: moindev/notif-api-service:latest
+          imagePullPolicy: Always
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          env:
+            # Same Redis instance as reptrack, reached cross-namespace. db 2 (0/1 used by reptrack).
+            - name: REDIS_URL
+              value: "redis://redis.reptrack.svc.cluster.local:6379/2"
+            # Same Postgres instance as reptrack, separate notif_staging database.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: DATABASE_URL
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notif-api
+  namespace: notif
+spec:
+  selector:
+    app: notif-api
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP

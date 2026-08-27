@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Copy deploy script to Raspberry Pi
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/pi_key
+          chmod 600 /tmp/pi_key
+          ssh -i /tmp/pi_key -o StrictHostKeyChecking=no ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} "mkdir -p ~/notif-api-service"
+          scp -i /tmp/pi_key -o StrictHostKeyChecking=no deploy_script.sh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }}:~/notif-api-service/
+          rm -f /tmp/pi_key
+
+      - name: SSH into Raspberry Pi and run deploy script
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PI_HOST }}
+          username: ${{ secrets.PI_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          script: |
+            chmod +x ~/notif-api-service/deploy_script.sh
+            ~/notif-api-service/deploy_script.sh
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
