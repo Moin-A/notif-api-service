@@ -22,7 +22,7 @@ spec:
         - name: notif-api
           image: moindev/notif-api-service:latest
           imagePullPolicy: Always
-          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api/push"]
           ports:
             - containerPort: 8000
           env:
@@ -75,7 +75,7 @@ metadata:
 spec:
   replacePathRegex:
     regex: ^/api/push(/.*)$
-    replacement: /$1
+    replacement: $1
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
