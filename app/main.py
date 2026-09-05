@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -10,9 +13,9 @@ redis_client = get_redis()
 
 
 class NotificationIn(BaseModel):
-    to: str
-    channel: str = "email"
-    message: str
+    endpoint: str
+    expirationTime: Optional[datetime] = None
+    keys: dict
 
 
 @app.get("/health")
