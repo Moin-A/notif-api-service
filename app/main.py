@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI
+import jwt
+from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
-
+from app.auth import JWTService
 from app.db import engine
 from app.queue import QUEUE_KEY, get_redis
 
@@ -31,7 +32,18 @@ def health_db():
 
 
 @app.post("/notifications", status_code=202)
-def enqueue_notification(n: NotificationIn):
-    """Queue a notification for the background worker to deliver."""
+def enqueue_notification(
+    n: NotificationIn,
+    request: Request,
+    authorization: Optional[str] = Header(default=None),
+):
+    try:
+        JWTService().decode(authorization.removeprefix("Bearer "))
+    except AttributeError:
+        raise HTTPException(status_code=401, detail="missing token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="invalid token")
     redis_client.rpush(QUEUE_KEY, n.model_dump_json())
     return {"status": "queued"}

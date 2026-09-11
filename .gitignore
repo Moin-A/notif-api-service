@@ -5,3 +5,4 @@ venv/
 .env
 .pytest_cache/
 .idea/
+node_modules/
