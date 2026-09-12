@@ -35,6 +35,29 @@ spec:
                 secretKeyRef:
                   name: notif-secrets
                   key: DATABASE_URL
+            # Rails secret_key_base — verifies the push_token JWT on subscribe.
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: JWT_SECRET
+            # VAPID pair for signing web pushes. Public half must equal the
+            # frontend's NEXT_PUBLIC_VAPID_PUBLIC_KEY.
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_PRIVATE_KEY
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_PUBLIC_KEY
+            - name: VAPID_SUBJECT
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_SUBJECT
           readinessProbe:
             httpGet:
               path: /health

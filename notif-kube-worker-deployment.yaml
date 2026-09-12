@@ -26,3 +26,25 @@ spec:
                 secretKeyRef:
                   name: notif-secrets
                   key: DATABASE_URL
+            # Rails secret_key_base — kept for parity with the API pod.
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: JWT_SECRET
+            # VAPID pair — the worker is what sends the web pushes.
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_PRIVATE_KEY
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_PUBLIC_KEY
+            - name: VAPID_SUBJECT
+              valueFrom:
+                secretKeyRef:
+                  name: notif-secrets
+                  key: VAPID_SUBJECT
