@@ -4,10 +4,18 @@ Lives at the repo root so pytest puts the project root on sys.path, making
 `import app.main` resolve. Fixtures defined here are auto-injected into any test
 by name — no import needed in the test files.
 """
+from dotenv import load_dotenv
+load_dotenv()
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import app.main
+import app.models  # noqa: registers models on Base.metadata
+from app.db import Base, get_db
 
 
 class FakeRedis:
@@ -41,7 +49,27 @@ def fake_redis():
 
 
 @pytest.fixture
-def client(fake_redis, monkeypatch):
+def db_session():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    def override_get_db():
+        yield session
+
+    app.main.app.dependency_overrides[get_db] = override_get_db
+    yield session
+    app.main.app.dependency_overrides.clear()
+    session.close()
+
+
+@pytest.fixture
+def client(fake_redis, monkeypatch, db_session):
     """TestClient with the app's Redis swapped for the in-memory fake."""
     monkeypatch.setattr(app.main, "redis_client", fake_redis)
     return TestClient(app.main.app)

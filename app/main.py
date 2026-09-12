@@ -2,16 +2,17 @@ from datetime import datetime
 from typing import Optional
 
 import jwt
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 from app.auth import JWTService
-from app.db import engine
+from app.db import engine, get_db
+from app.models import Recipient, Device, Subscription
 from app.queue import QUEUE_KEY, get_redis
 
 app = FastAPI(title="notif-api-service")
 redis_client = get_redis()
-
 
 class NotificationIn(BaseModel):
     endpoint: str
@@ -36,14 +37,29 @@ def enqueue_notification(
     n: NotificationIn,
     request: Request,
     authorization: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
 ):
     try:
-        JWTService().decode(authorization.removeprefix("Bearer "))
+        payload = JWTService().decode(authorization.removeprefix("Bearer "))
     except AttributeError:
         raise HTTPException(status_code=401, detail="missing token")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="invalid token")
+    recipient = db.query(Recipient).filter_by(external_id=payload["sub"]).first()
+    if not recipient:
+        recipient = Recipient(external_id=payload["sub"])
+
+    device = Device(recipient=recipient)
+    sub = Subscription(
+        device=device,
+        endpoint=n.endpoint,
+        p256dh=n.keys["p256dh"],
+        auth=n.keys["auth"],
+        expiration_time=n.expirationTime,
+    )
+    db.add(sub)
+    db.commit()
     redis_client.rpush(QUEUE_KEY, n.model_dump_json())
     return {"status": "queued"}

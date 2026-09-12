@@ -19,3 +19,11 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # Shared declarative base. Every model inherits from this, and its .metadata
 # collects all tables so Base.metadata.create_all(engine) can build them.
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
