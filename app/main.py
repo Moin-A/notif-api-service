@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from datetime import datetime
 from typing import Optional
 
@@ -47,9 +50,10 @@ def enqueue_notification(
         raise HTTPException(status_code=401, detail="token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="invalid token")
-    recipient = db.query(Recipient).filter_by(external_id=payload["sub"]).first()
+    user_id = str(payload["user_id"])
+    recipient = db.query(Recipient).filter_by(external_id=user_id).first()
     if not recipient:
-        recipient = Recipient(external_id=payload["sub"])
+        recipient = Recipient(external_id=user_id)
 
     device = Device(recipient=recipient)
     sub = Subscription(

@@ -9,7 +9,7 @@ VALID_BODY = {
 
 
 def _auth_headers():
-    token = JWTService().encode({"sub": "user-42"})
+    token = JWTService().encode({"user_id": 42})
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -29,4 +29,4 @@ def test_enqueue_saves_subscription_to_db(client, db_session):
     assert sub.expiration_time is None
 
     recipient = db_session.get(Recipient, sub.device.recipient_id)
-    assert recipient.external_id == "user-42"
+    assert recipient.external_id == "42"

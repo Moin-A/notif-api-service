@@ -24,7 +24,7 @@ VALID_BODY = {
 
 @hooks.before(TXN_202)
 def valid_jwt_for_202(transaction):
-    token = JWTService().encode({"sub": "user-42"})
+    token = JWTService().encode({"user_id": 42})
     transaction["request"]["headers"]["Authorization"] = f"Bearer {token}"
 
 
@@ -41,7 +41,7 @@ def invalid_jwt_gets_401(transaction):
 
 @hooks.before(TXN_422)
 def valid_jwt_gets_202(transaction):
-    token = JWTService().encode({"sub": "user-42"})
+    token = JWTService().encode({"user_id": 42})
 
     transaction["request"]["body"] = json.dumps(VALID_BODY)
     transaction["request"]["headers"]["Content-Type"] = "application/json"
